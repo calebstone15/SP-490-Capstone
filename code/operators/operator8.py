@@ -18,7 +18,8 @@ def main():
     root.title("Operator 8")
     root.geometry("1280x720")
     root.configure(bg="#1a1a2e")
-    root.resizable(False, False)
+    root.resizable(True, True)
+    root.minsize(800, 500)
 
     label = tk.Label(
         root,

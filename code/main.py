@@ -19,11 +19,12 @@ def main():
     root.title("ERPL Rocket Engine Test Fire Simulation")
     root.geometry("1280x720")
     root.configure(bg="#1a1a2e")
-    root.resizable(False, False)
+    root.resizable(True, True)
+    root.minsize(800, 500)
 
     # ── Welcome Header ──────────────────────────────────────────────
     header_frame = tk.Frame(root, bg="#1a1a2e")
-    header_frame.pack(pady=(80, 20))
+    header_frame.pack(pady=(80, 20), expand=True)
 
     title_label = tk.Label(
         header_frame,
