@@ -16,6 +16,16 @@ def launch_operator(root, operator_number):
     root.destroy()
 
 
+def on_enter(btn, border_frame):
+    btn.config(bg="#0f3460")
+    border_frame.config(bg="#e94560")
+
+
+def on_leave(btn, border_frame):
+    btn.config(bg="#16213e")
+    border_frame.config(bg="#2a2a4a")
+
+
 def main():
     root = tk.Tk()
     root.title("ERPL Rocket Engine Test Fire Simulation")
@@ -26,7 +36,7 @@ def main():
 
     # ── Welcome Header ──────────────────────────────────────────────
     header_frame = tk.Frame(root, bg="#1a1a2e")
-    header_frame.pack(pady=(80, 20), expand=True)
+    header_frame.pack(pady=(55, 10))
 
     title_label = tk.Label(
         header_frame,
@@ -40,26 +50,33 @@ def main():
 
     subtitle_label = tk.Label(
         header_frame,
-        text="Select your operator position.",
-        font=("Helvetica", 18),
-        fg="#ffffff",
+        text="Select your operator position to begin.",
+        font=("Helvetica", 16),
+        fg="#aaaacc",
         bg="#1a1a2e",
     )
-    subtitle_label.pack(pady=(15, 0))
+    subtitle_label.pack(pady=(12, 0))
+
+    # ── Separator ───────────────────────────────────────────────────
+    tk.Frame(root, bg="#e94560", height=2).pack(fill="x", padx=120, pady=(18, 0))
 
     # ── Operator Buttons ────────────────────────────────────────────
     button_frame = tk.Frame(root, bg="#1a1a2e")
-    button_frame.pack(pady=40)
+    button_frame.pack(pady=32)
 
     for i in range(1, 9):
         row = (i - 1) // 4
         col = (i - 1) % 4
 
+        # Colored border frame gives a subtle highlight around each button
+        border_frame = tk.Frame(button_frame, bg="#2a2a4a", padx=2, pady=2)
+        border_frame.grid(row=row, column=col, padx=12, pady=10)
+
         btn = tk.Button(
-            button_frame,
+            border_frame,
             text=f"Operator {i}",
-            font=("Helvetica", 18, "bold"),
-            width=16,
+            font=("Helvetica", 16, "bold"),
+            width=14,
             height=3,
             bg="#16213e",
             fg="#e94560",
@@ -69,7 +86,19 @@ def main():
             cursor="hand2",
             command=lambda n=i: launch_operator(root, n),
         )
-        btn.grid(row=row, column=col, padx=15, pady=12)
+        btn.pack()
+
+        btn.bind("<Enter>", lambda _, b=btn, f=border_frame: on_enter(b, f))
+        btn.bind("<Leave>", lambda _, b=btn, f=border_frame: on_leave(b, f))
+
+    # ── Footer ──────────────────────────────────────────────────────
+    tk.Label(
+        root,
+        text="ERPL Simulation  \u2022  v1.0  \u2022  Capstone 2026",
+        font=("Helvetica", 10),
+        fg="#555577",
+        bg="#1a1a2e",
+    ).pack(side="bottom", pady=10)
 
     root.mainloop()
 
