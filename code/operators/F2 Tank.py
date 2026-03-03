@@ -15,7 +15,7 @@ def return_to_main(root):
 
 def main():
     root = tk.Tk()
-    root.title("Operator 4")
+    root.title("F2 Tank")
     root.geometry("1280x720")
     root.configure(bg="#1a1a2e")
     root.resizable(True, True)
@@ -23,7 +23,7 @@ def main():
 
     label = tk.Label(
         root,
-        text="Operator 4",
+        text="F2 Tank",
         font=("Helvetica", 32, "bold"),
         fg="#e94560",
         bg="#1a1a2e",
@@ -32,7 +32,7 @@ def main():
 
     info_label = tk.Label(
         root,
-        text="Operator 4 station is active.\nAwaiting further implementation.",
+        text="F2 Tank station is active.\nAwaiting further implementation.",
         font=("Helvetica", 16),
         fg="#ffffff",
         bg="#1a1a2e",
