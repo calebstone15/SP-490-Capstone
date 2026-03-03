@@ -6,12 +6,22 @@ import sys
 import os
 
 
-def launch_operator(root, operator_number):
+OPERATORS = [
+    "F1 Upstream",
+    "F2 Upstream",
+    "F1 Tank",
+    "F2 Tank",
+    "F1 Downstream",
+    "F2 Downstream",
+    "Engine",
+    "VisualOps",
+]
+
+
+def launch_operator(root, name):
     """Launch the corresponding operator file and close the main window."""
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    operator_file = os.path.join(
-        script_dir, "operators", f"operator{operator_number}.py"
-    )
+    operator_file = os.path.join(script_dir, "operators", f"{name}.py")
     subprocess.Popen([sys.executable, operator_file])
     root.destroy()
 
@@ -64,9 +74,9 @@ def main():
     button_frame = tk.Frame(root, bg="#1a1a2e")
     button_frame.pack(pady=32)
 
-    for i in range(1, 9):
-        row = (i - 1) // 4
-        col = (i - 1) % 4
+    for i, name in enumerate(OPERATORS):
+        row = i // 4
+        col = i % 4
 
         # Colored border frame gives a subtle highlight around each button
         border_frame = tk.Frame(button_frame, bg="#2a2a4a", padx=2, pady=2)
@@ -74,7 +84,7 @@ def main():
 
         btn = tk.Button(
             border_frame,
-            text=f"Operator {i}",
+            text=name,
             font=("Helvetica", 16, "bold"),
             width=14,
             height=3,
@@ -84,7 +94,7 @@ def main():
             activeforeground="#e94560",
             relief="flat",
             cursor="hand2",
-            command=lambda n=i: launch_operator(root, n),
+            command=lambda n=name: launch_operator(root, n),
         )
         btn.pack()
 
