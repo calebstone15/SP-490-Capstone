@@ -95,16 +95,20 @@ def main():
 
     def next_chamber_pressure():
         tick = tick_counter[0]
+        # pyrograin pressure blip before valves open (igniter firing pulse)
+        if pyro_active[0] and valve_open_tick[0] is None and activation_tick[0] is not None:
+            pdt = (tick - activation_tick[0]) * (UPDATE_MS / 1000.0)
+            blip = 22 * (1 - math.exp(-8 * pdt)) * math.exp(-1.5 * pdt)
+            p = max(0.0, blip + random.gauss(0, 0.5))
+            if random.random() < 0.005:
+                p += random.uniform(2, 8)
+            return p
         # true idle — never opened
         if valve_open_tick[0] is None:
             return max(0.0, random.gauss(0, 0.3))
         # active burn
         if valves_active[0]:
             vdt = (tick - valve_open_tick[0]) * (UPDATE_MS / 1000.0)
-            # Phase 1 (0–0.35 s): rapid rise to slight overshoot
-            # Phase 2 (0.35–1.1 s): characteristic startup dip
-            # Phase 3 (1.1–2.8 s): recovery to steady state
-            # Phase 4 (2.8 s+):    hold with noise
             P1, P2, P3 = 0.35, 1.1, 2.8
             PEAK = CHAMBER_STEADY * 1.04
             DIP  = CHAMBER_STEADY * 0.38
@@ -118,12 +122,19 @@ def main():
                 p = DIP + (CHAMBER_STEADY - DIP) * (1 - math.exp(-3.0 * t))
             else:
                 p = CHAMBER_STEADY
-            return max(0.0, p + random.gauss(0, 14))
-        # valves closed — exponential decay from captured pressure
+            # combustion oscillations: structural acoustic modes visible in real data
+            p += 8 * math.sin(2 * math.pi * 1.2 * vdt) + 3 * math.sin(2 * math.pi * 2.8 * vdt)
+            p += random.gauss(0, 14)
+            if random.random() < 0.005:   # occasional EMI spike
+                p += random.uniform(15, 40)
+            return max(0.0, p)
+        # valves closed — water hammer spike then exponential blowdown
         if valve_close_tick[0] is not None:
             cdt = (tick - valve_close_tick[0]) * (UPDATE_MS / 1000.0)
-            p = valve_close_pres[0] * math.exp(-2.2 * cdt)
-            return max(0.0, p + random.gauss(0, max(0.3, 6 * math.exp(-cdt))))
+            water_hammer = 48 * math.exp(-40 * cdt)   # sharp ~0.1 s spike at closure
+            decay = valve_close_pres[0] * math.exp(-2.2 * cdt)
+            p = decay + water_hammer + random.gauss(0, max(0.3, 6 * math.exp(-cdt)))
+            return max(0.0, p)
         return max(0.0, random.gauss(0, 0.3))
 
     def next_temp():
@@ -131,28 +142,44 @@ def main():
         if not pyro_active[0]:
             return IDLE_TEMP + random.gauss(0, 0.6)
 
-        # base pyro temperature — cooling overrides the rise curve after valves close
         dt = (tick - activation_tick[0]) * (UPDATE_MS / 1000.0)
         noise_scale = 8 + 30 * math.exp(-dt * 0.12)
+
         if cooling_down[0] and cooldown_tick[0] is not None:
             cdt = (tick - cooldown_tick[0]) * (UPDATE_MS / 1000.0)
             base = IDLE_TEMP + (cooldown_start_temp[0] - IDLE_TEMP) * math.exp(-0.22 * cdt)
             base += random.gauss(0, max(0.6, 12 * math.exp(-cdt * 0.6)))
         else:
-            rise = PEAK_TEMP / (1 + math.exp(-0.49 * (dt - 6.0)))
-            base = rise + random.gauss(0, noise_scale)
+            # pyrograin ignition flash: fast thermal burst that decays as chamber heats
+            flash = 600 * (1 - math.exp(-5 * dt)) * math.exp(-dt)
+            rise  = PEAK_TEMP / (1 + math.exp(-0.49 * (dt - 6.0)))
+            # overshoot damping as temp approaches steady-state (~3 % overshoot)
+            overshoot = 80 * math.exp(-0.5 * (dt - 10)) * math.cos(0.6 * (dt - 10)) if dt > 8 else 0
+            base = rise + flash + overshoot + random.gauss(0, noise_scale)
 
-        # combustion spike from run valves
+        # combustion spike from run valves — coupled to pressure startup envelope
         spike = 0.0
         if valves_active[0] and valve_open_tick[0] is not None:
             vdt = (tick - valve_open_tick[0]) * (UPDATE_MS / 1000.0)
-            spike = VALVE_SPIKE / (1 + math.exp(-3.5 * (vdt - 0.8)))
+            P1, P2, P3 = 0.35, 1.1, 2.8
+            if vdt <= P1:
+                pres_factor = vdt / P1
+            elif vdt <= P2:
+                pres_factor = 1.04 + (0.38 - 1.04) * ((vdt - P1) / (P2 - P1))
+            elif vdt <= P3:
+                pres_factor = 0.38 + 0.62 * (1 - math.exp(-3.0 * ((vdt - P2) / (P3 - P2))))
+            else:
+                pres_factor = 1.0
+            spike = VALVE_SPIKE * max(0.1, pres_factor) / (1 + math.exp(-3.5 * (vdt - 0.8)))
             spike += random.gauss(0, 18)
         elif not valves_active[0] and valve_close_tick[0] is not None:
             cdt = (tick - valve_close_tick[0]) * (UPDATE_MS / 1000.0)
             spike = VALVE_SPIKE * math.exp(-0.9 * cdt) + random.gauss(0, max(1, 12 * math.exp(-cdt)))
 
-        return max(IDLE_TEMP, base + spike)
+        result = max(IDLE_TEMP, base + spike)
+        if random.random() < 0.005:   # occasional vibration/EMI spike
+            result += random.uniform(15, 50)
+        return result
 
     # ── Embed matplotlib graph ───────────────────────────────────────
     fig, ax = plt.subplots(figsize=(9, 2.0))
