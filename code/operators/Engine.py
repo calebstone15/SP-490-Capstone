@@ -9,34 +9,46 @@ matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
+# ── Color palette ──────────────────────────────────────────────────────────────
+# Dark background/panel colors for the overall UI theme
 BG      = "#0d0d1a"; PANEL  = "#111128"; BORDER = "#1a1d3a"
+# Accent/button colors; CYAN used for active highlights
 ACCENT  = "#e94560"; ABTN   = "#0f1535"; CYAN   = "#00d4ff"
+# Status colors: green=nominal, amber=caution, danger=alert
 GREEN   = "#00e676"; AMBER  = "#ffab40"; DANGER = "#ff5252"
+# Text hierarchy: TXT=primary, TXT2=secondary, TXT3=tertiary/dim
 TXT     = "#e8eaf6"; TXT2   = "#7986cb"; TXT3   = "#8898c8"
+# P&ID canvas background and pipe state colors (off/on)
 PID_BG  = "#07071a"; PIPE_OFF = "#1a1d3a"; PIPE_ON = "#00d4ff"
+# Valve state colors: off, open, warning/active, closed
 V_OFF   = "#2a2d4a"; V_ON   = "#00e676"; V_WARN  = "#ffab40"; V_CLOSE = "#ff5252"
+# High-temperature indicator color for the Tc readout
 RED_HOT = "#ff6030"
 
 
 def return_to_main(root):
+    """Close this operator screen and relaunch the main menu."""
     main_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "main.py")
     subprocess.Popen([sys.executable, main_file])
     root.destroy()
 
 
 def diamond(c, x, y, s=11, fill=None):
+    """Draw a diamond-shaped valve symbol on canvas c centered at (x, y)."""
     f = fill or V_OFF
     pts = [x, y - s, x + s, y, x, y + s, x - s, y]
     return c.create_polygon(pts, fill=f, outline="#3a3d6a", width=1.5)
 
 
 def sensor_circle(c, x, y, lbl, r=11):
+    """Draw a circular sensor indicator with a label on canvas c at (x, y)."""
     item = c.create_oval(x - r, y - r, x + r, y + r, fill=ABTN, outline="#3a3d6a", width=1.2)
     c.create_text(x, y, text=lbl, fill=TXT2, font=("Courier", 9, "bold"))
     return item
 
 
 def main():
+    # ── Window setup ──────────────────────────────────────────────────
     root = tk.Tk()
     root.title("Engine — Ignition & Combustion")
     root.geometry("1440x960")
@@ -70,6 +82,8 @@ def main():
     right.grid(row=0, column=1, sticky="nsew")
 
     # ── Steps ─────────────────────────────────────────────────────────
+    # Each step is (countdown_time, step_name, description).
+    # step_states tracks whether each step has been executed (toggled on).
     steps = [
         ("0:02:00", "ACTIVATE PYROGRAIN",           "Igniter for the engine"),
         ("0:01:45", "OPEN RUN VALVES  PB4 + PB8",   "Run valves"),
@@ -77,9 +91,10 @@ def main():
         ("+0:30  ", "VERIFY Pc, LOX & FUEL ~0 PSI", "Post-test manifold pressure confirmed safe"),
     ]
     step_states = [False] * len(steps)
-    step_btns   = []
-    step_labels = []
+    step_btns   = []   # EXECUTE/UNDO button widgets, indexed by step
+    step_labels = []   # status label widgets (e.g. "● ACTIVE"), indexed by step
 
+    # Build the checklist table header
     tk.Label(left, text="COUNTDOWN CHECKLIST", font=("Courier", 14, "bold"),
              fg=TXT2, bg=BG).pack(anchor="w", pady=(0, 8))
     tbl = tk.Frame(left, bg=BG)
@@ -92,39 +107,58 @@ def main():
                                              sticky="ew", pady=(0, 6))
 
     # ── Physics state ─────────────────────────────────────────────────
-    UPDATE_MS    = 50
-    WINDOW_SECS  = 30
-    tick         = [0]
-    IDLE_TEMP    = 80.0
-    PEAK_TEMP    = 2285.0
-    CHAMBER_STEADY = 350.0
+    UPDATE_MS    = 50          # graph/sensor refresh interval in milliseconds
+    WINDOW_SECS  = 30          # rolling time window shown on plots
+    tick         = [0]         # current simulation tick counter (mutable list for closure access)
+    IDLE_TEMP    = 80.0        # ambient/idle temperature (°F)
+    PEAK_TEMP    = 2285.0      # maximum expected chamber temperature (°F)
+    CHAMBER_STEADY = 350.0     # steady-state chamber pressure target (PSI)
 
-    pyro_active       = [False]; pyro_tick     = [None]
-    valves_active     = [False]; valve_open_tick = [None]; valve_close_tick = [None]
-    cooling_down      = [False]; cooldown_tick = [None]; cooldown_start_temp = [IDLE_TEMP]
-    valve_close_pres  = [0.0]
+    # Mutable single-element lists allow these flags/timestamps to be read
+    # and written inside nested closures without 'nonlocal' declarations.
+    pyro_active       = [False]; pyro_tick     = [None]           # pyrograin igniter state
+    valves_active     = [False]; valve_open_tick = [None]; valve_close_tick = [None]  # run valve state
+    cooling_down      = [False]; cooldown_tick = [None]; cooldown_start_temp = [IDLE_TEMP]  # post-burn cooldown
+    valve_close_pres  = [0.0]  # chamber pressure captured at the moment valves close
 
+    # Rolling time-series buffers for the live plots
     temp_t = []; temp_v = []; pres_t = []; pres_v = []
 
     def next_chamber_pressure():
+        """Compute the simulated chamber pressure (PSI) for the current tick.
+
+        Models four distinct phases:
+        1. Pyro-only blip: small pressure spike from igniter before valves open.
+        2. Pre-valve baseline: near-zero noise before any activation.
+        3. Valve-open burn: three-segment ramp (overshoot → dip → steady-state)
+           plus sinusoidal combustion oscillations and occasional spikes.
+        4. Post-valve cooldown: exponential decay after valves close.
+        """
         t = tick[0]
+        # Phase 1 – pyrograin fired but run valves not yet open: small igniter blip
         if pyro_active[0] and valve_open_tick[0] is None and pyro_tick[0] is not None:
             dt = (t - pyro_tick[0]) * (UPDATE_MS / 1000.0)
             blip = 22 * (1 - math.exp(-8 * dt)) * math.exp(-1.5 * dt)
             return max(0.0, blip + random.gauss(0, 0.5))
+        # Phase 2 – no valve event recorded yet: ambient noise floor
         if valve_open_tick[0] is None:
             return max(0.0, random.gauss(0, 0.3))
+        # Phase 3 – valves open: ramp to overshoot, dip, then settle at steady-state
         if valves_active[0]:
             vdt = (t - valve_open_tick[0]) * (UPDATE_MS / 1000.0)
-            P1, P2, P3 = 0.35, 1.1, 2.8; PEAK = CHAMBER_STEADY * 1.04; DIP = CHAMBER_STEADY * 0.38
+            P1, P2, P3 = 0.35, 1.1, 2.8          # phase transition timestamps (s)
+            PEAK = CHAMBER_STEADY * 1.04           # initial overshoot above steady-state
+            DIP  = CHAMBER_STEADY * 0.38           # brief dip after overshoot
             if vdt <= P1:   p = PEAK * (vdt / P1)
             elif vdt <= P2: p = PEAK + (DIP - PEAK) * ((vdt - P1) / (P2 - P1))
             elif vdt <= P3: p = DIP + (CHAMBER_STEADY - DIP) * (1 - math.exp(-3.0 * ((vdt - P2) / (P3 - P2))))
             else:           p = CHAMBER_STEADY
+            # Superimpose combustion instability oscillations (two frequency components)
             p += 8 * math.sin(2 * math.pi * 1.2 * vdt) + 3 * math.sin(2 * math.pi * 2.8 * vdt)
-            p += random.gauss(0, 14)
-            if random.random() < 0.005: p += random.uniform(15, 40)
+            p += random.gauss(0, 14)               # sensor noise
+            if random.random() < 0.005: p += random.uniform(15, 40)  # rare pressure spike
             return max(0.0, p)
+        # Phase 4 – valves closed: exponential decay from the pressure at closure
         if valve_close_tick[0] is not None:
             cdt = (t - valve_close_tick[0]) * (UPDATE_MS / 1000.0)
             return max(0.0, valve_close_pres[0] * math.exp(-2.2 * cdt) +
@@ -132,23 +166,38 @@ def main():
         return max(0.0, random.gauss(0, 0.3))
 
     def next_temp():
+        """Compute the simulated chamber temperature (°F) for the current tick.
+
+        Builds the temperature as a base component plus an optional valve-driven spike:
+        - Pre-ignition: returns idle temperature with minor sensor noise.
+        - Post-ignition base: sigmoid rise toward PEAK_TEMP with an initial flash
+          and a damped cosine overshoot; noise decreases as the burn stabilises.
+        - Cooldown base: exponential decay back toward idle after valves close.
+        - Valve spike: additional heat contribution that follows the pressure profile
+          while valves are open, then decays exponentially after they close.
+        """
         t = tick[0]
+        # Pre-ignition: pyrograin not yet fired
         if not pyro_active[0]:
             return IDLE_TEMP + random.gauss(0, 0.6)
         dt = (t - pyro_tick[0]) * (UPDATE_MS / 1000.0)
-        noise_scale = 8 + 30 * math.exp(-dt * 0.12)
+        noise_scale = 8 + 30 * math.exp(-dt * 0.12)  # noise starts high, settles over time
         if cooling_down[0] and cooldown_tick[0] is not None:
+            # Post-burn cooldown: exponential decay toward idle
             cdt = (t - cooldown_tick[0]) * (UPDATE_MS / 1000.0)
             base = IDLE_TEMP + (cooldown_start_temp[0] - IDLE_TEMP) * math.exp(-0.22 * cdt)
             base += random.gauss(0, max(0.6, 12 * math.exp(-cdt * 0.6)))
         else:
-            flash    = 600 * (1 - math.exp(-5 * dt)) * math.exp(-dt)
-            rise     = PEAK_TEMP / (1 + math.exp(-0.49 * (dt - 6.0)))
-            overshoot= 80 * math.exp(-0.5 * (dt - 10)) * math.cos(0.6 * (dt - 10)) if dt > 8 else 0
-            base     = rise + flash + overshoot + random.gauss(0, noise_scale)
+            # Active burn: sigmoid rise + initial flash + damped overshoot ring
+            flash     = 600 * (1 - math.exp(-5 * dt)) * math.exp(-dt)          # sharp early spike
+            rise      = PEAK_TEMP / (1 + math.exp(-0.49 * (dt - 6.0)))         # S-curve to peak
+            overshoot = 80 * math.exp(-0.5 * (dt - 10)) * math.cos(0.6 * (dt - 10)) if dt > 8 else 0
+            base      = rise + flash + overshoot + random.gauss(0, noise_scale)
+        # Additional temperature spike driven by propellant flow through the valves
         spike = 0.0
         if valves_active[0] and valve_open_tick[0] is not None:
             vdt = (t - valve_open_tick[0]) * (UPDATE_MS / 1000.0)
+            # Mirror the pressure phase-factor to scale the heat spike
             P1, P2, P3 = 0.35, 1.1, 2.8
             if vdt <= P1:   pf = vdt / P1
             elif vdt <= P2: pf = 1.04 + (0.38 - 1.04) * ((vdt - P1) / (P2 - P1))
@@ -156,17 +205,24 @@ def main():
             else:           pf = 1.0
             spike = 480.0 * max(0.1, pf) / (1 + math.exp(-3.5 * (vdt - 0.8))) + random.gauss(0, 18)
         elif not valves_active[0] and valve_close_tick[0] is not None:
+            # Heat dissipation after valve closure
             cdt = (t - valve_close_tick[0]) * (UPDATE_MS / 1000.0)
             spike = 480.0 * math.exp(-0.9 * cdt) + random.gauss(0, max(1, 12 * math.exp(-cdt)))
         result = max(IDLE_TEMP, base + spike)
-        if random.random() < 0.005: result += random.uniform(15, 50)
+        if random.random() < 0.005: result += random.uniform(15, 50)  # rare thermocouple spike
         return result
 
     def start_cooldown():
+        """Record the start of the cooldown phase, capturing the current temperature."""
         cooling_down[0] = True; cooldown_tick[0] = tick[0]
         cooldown_start_temp[0] = temp_v[-1] if temp_v else PEAK_TEMP
 
     def deactivate_valves():
+        """Automatically close the run valves after the burn duration (called via root.after).
+
+        Resets step 1 (OPEN RUN VALVES) to its un-executed state, updates the P&ID
+        to reflect closed valves, and begins the temperature cooldown sequence.
+        """
         if not step_states[1]:
             return
         step_states[1] = False
@@ -269,10 +325,18 @@ def main():
     pid.create_text(185, 350, text="ACTIVE", fill=TXT3, font=("Courier", 9), anchor="w")
 
     def update_pid():
+        """Refresh all P&ID canvas elements to reflect the current system state.
+
+        Updates valve symbols, pipe flow colors, engine body highlight, PT sensor
+        indicators, and live Pc/Tc readouts with color-coded severity levels.
+        """
+        # Valve diamonds: green when open, dim when closed
         pid.itemconfig(p_pb4, fill=V_ON   if valves_active[0] else V_OFF)
         pid.itemconfig(p_pb8, fill=V_ON   if valves_active[0] else V_OFF)
+        # Pyrograin star: amber when active, dim otherwise
         pid.itemconfig(p_pyro,fill=V_WARN if pyro_active[0] else V_OFF)
         burning = valves_active[0] and pyro_active[0]
+        # Pipe color: cyan when flow is active, dark when idle
         flow_c = PIPE_ON if valves_active[0] else PIPE_OFF
         pid.itemconfig(p_pipe_lox_a,  fill=flow_c)
         pid.itemconfig(p_pipe_lox_b,  fill=flow_c)
@@ -281,10 +345,13 @@ def main():
         pid.itemconfig(p_pipe_conv_l, fill=flow_c)
         pid.itemconfig(p_pipe_conv_f, fill=flow_c)
         pid.itemconfig(p_pipe_inlet,  fill=flow_c)
+        # Engine body brightens slightly during active combustion
         eng_color = "#1a2a10" if burning else "#0f1a25"
         pid.itemconfig(p_engine_body, fill=eng_color)
+        # PT sensors light up when pyrograin is active
         pid.itemconfig(p_pt5,  fill=CYAN if pyro_active[0] else ABTN)
         pid.itemconfig(p_pt15, fill=CYAN if pyro_active[0] else ABTN)
+        # Live sensor readouts with color thresholds (nominal → caution → danger)
         cur_p = pres_v[-1] if pres_v else 0.0
         cur_t = temp_v[-1] if temp_v else IDLE_TEMP
         p_color = DANGER if cur_p > 200 else (AMBER if cur_p > 50 else TXT3)
@@ -295,28 +362,44 @@ def main():
         pid.itemconfig(p_tc_val, text=f"{cur_t:.0f}°F",   fill=t_color)
 
     def make_toggle(idx):
+        """Return a toggle callback for checklist step idx.
+
+        When activated (EXECUTE pressed):
+          - idx 0: fires the pyrograin igniter and starts the temperature model.
+          - idx 1: opens run valves PB4+PB8; schedules auto-close after 5 s.
+          - idx 3: verifies post-test pressure is below 5 PSI and marks safe/unsafe.
+        When deactivated (UNDO pressed):
+          - idx 0: deactivates the pyrograin (resets igniter flag).
+          - idx 1: immediately closes the valves and begins cooldown.
+        """
         def toggle():
             step_states[idx] = not step_states[idx]
             if step_states[idx]:
+                # Step executed: switch button to UNDO, mark status ACTIVE
                 step_btns[idx].config(text="UNDO", bg="#1a0820", fg=ACCENT, activebackground=ABTN)
                 step_labels[idx].config(text="● ACTIVE", fg=GREEN)
                 if idx == 0:
+                    # Activate pyrograin igniter
                     pyro_active[0] = True; pyro_tick[0] = tick[0]
                 elif idx == 1:
+                    # Open run valves; auto-close after 5 000 ms
                     valves_active[0] = True; valve_open_tick[0] = tick[0]
                     valve_close_tick[0] = None
                     root.after(5000, deactivate_valves)
                 elif idx == 3:
+                    # Post-test pressure verification: safe if Pc < 5 PSI
                     cur_p = pres_v[-1] if pres_v else 0.0
                     ok = cur_p < 5
                     step_labels[idx].config(text="● SAFE ✓" if ok else "● PRESS REMAIN",
                                             fg=GREEN if ok else DANGER)
             else:
+                # Step undone: revert button and status label
                 step_btns[idx].config(text="EXECUTE", bg=ABTN, fg=CYAN, activebackground=BORDER)
                 step_labels[idx].config(text="○ READY", fg=TXT3)
                 if idx == 0:
                     pyro_active[0] = False
                 elif idx == 1:
+                    # Manually close valves and start cooldown
                     valves_active[0] = False
                     valve_close_tick[0] = tick[0]
                     valve_close_pres[0] = pres_v[-1] if pres_v else 0.0
@@ -324,6 +407,8 @@ def main():
             update_pid()
         return toggle
 
+    # Populate checklist rows; each row gets time, name, description, an EXECUTE
+    # button (wired to make_toggle), and a status label.
     for i, (ts, name, desc) in enumerate(steps):
         row = i + 2
         tk.Label(tbl, text=ts, font=("Courier", 13), fg=TXT2, bg=BG,
@@ -344,6 +429,9 @@ def main():
         btn.config(command=make_toggle(i))
 
     # ── Dual graph ────────────────────────────────────────────────────
+    # Two side-by-side matplotlib plots embedded in the Tk window:
+    #   ax1 – chamber temperature (Tc) with a dashed PEAK_TEMP reference line
+    #   ax2 – chamber pressure (Pc) with a dashed CHAMBER_STEADY reference line
     tk.Frame(root, bg=BORDER, height=1).pack(fill="x", padx=50, pady=(8, 0))
     gf = tk.Frame(root, bg=BG)
     gf.pack(fill="x", padx=50, pady=(4, 0))
@@ -361,9 +449,11 @@ def main():
         ax.tick_params(colors=TXT2, labelsize=9)
         for sp in ax.spines.values():
             sp.set_edgecolor(BORDER)
+    # Dashed reference lines showing design-point targets
     ax1.axhline(PEAK_TEMP, color=ACCENT, linewidth=0.6, linestyle="--", alpha=0.3)
     ax2.axhline(CHAMBER_STEADY, color=ACCENT, linewidth=0.8, linestyle="--", alpha=0.35)
 
+    # Live plot line objects; updated each tick via set_data()
     (lt,) = ax1.plot([], [], color=CYAN, linewidth=1.6)
     rt = ax1.text(0.98, 0.88, f"{IDLE_TEMP:.0f}°F", transform=ax1.transAxes, ha="right", va="top",
                   color=CYAN, fontsize=11, fontweight="bold", fontfamily="monospace",
@@ -377,16 +467,26 @@ def main():
     cplot.get_tk_widget().pack(fill="both", expand=True)
 
     def update_graph():
+        """Advance the simulation by one tick and refresh the live plots and P&ID.
+
+        Called every UPDATE_MS milliseconds via root.after. Appends new sensor
+        values to the rolling buffers, trims data outside the WINDOW_SECS window,
+        redraws both axes with auto-scaled Y limits, and color-codes the readout
+        text based on current severity thresholds.
+        """
         tick[0] += 1
         t = tick[0] * (UPDATE_MS / 1000.0)
+        # Sample simulated sensor values and append to rolling buffers
         temp_t.append(t); temp_v.append(next_temp())
         pres_t.append(t); pres_v.append(next_chamber_pressure())
+        # Trim data points that have scrolled outside the visible time window
         cutoff = t - WINDOW_SECS
         while temp_t and temp_t[0] < cutoff:
             temp_t.pop(0); temp_v.pop(0)
         while pres_t and pres_t[0] < cutoff:
             pres_t.pop(0); pres_v.pop(0)
 
+        # Update temperature plot
         lt.set_data(temp_t, temp_v)
         ax1.set_xlim(max(0, t - WINDOW_SECS), max(WINDOW_SECS, t))
         if len(temp_v) > 1:
@@ -396,6 +496,7 @@ def main():
         tc = DANGER if cur_t > 1000 else (AMBER if cur_t > 200 else CYAN)
         rt.set_text(f"{cur_t:.0f}°F"); rt.set_color(tc); lt.set_color(tc)
 
+        # Update pressure plot
         lp.set_data(pres_t, pres_v)
         ax2.set_xlim(max(0, t - WINDOW_SECS), max(WINDOW_SECS, t))
         if len(pres_v) > 1:
@@ -404,10 +505,12 @@ def main():
         cur_p = pres_v[-1] if pres_v else 0.0
         pc = DANGER if cur_p > 300 else GREEN
         rp.set_text(f"{cur_p:.0f} PSI"); rp.set_color(pc)
+        # Flush canvas and sync P&ID readouts
         cplot.draw_idle()
         update_pid()
         root.after(UPDATE_MS, update_graph)
 
+    # Kick off the recurring update loop
     root.after(UPDATE_MS, update_graph)
 
     tk.Button(root, text="◀  MAIN MENU", font=("Courier", 12, "bold"),
