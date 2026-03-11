@@ -114,9 +114,10 @@ def main():
         """
         if not cameras_active[0]:
             return max(0.0, random.gauss(2, 1))
-        # Each camera has a slightly different baseline quality based on positioning
-        baseline = 93 - cam_idx * 1.5
-        noise    = random.gauss(0, 2.5)
+        # Each camera has a distinct baseline quality based on positioning/distance
+        baselines = [94, 85, 91, 78]
+        baseline  = baselines[cam_idx]
+        noise     = random.gauss(0, 2.5)
         dropout  = -random.uniform(8, 25) if random.random() < 0.008 else 0.0
         return max(0.0, min(100.0, baseline + noise + dropout))
 
@@ -340,12 +341,18 @@ def main():
     ax1.legend(facecolor=PANEL, edgecolor=BORDER, labelcolor=TXT2, fontsize=9, loc="upper left")
     ax2.legend(facecolor=PANEL, edgecolor=BORDER, labelcolor=TXT2, fontsize=9, loc="upper left")
 
-    # Corner readout text objects showing latest value per axis pair
-    ra = ax1.text(0.98, 0.88, "OFFLINE", transform=ax1.transAxes, ha="right", va="top",
-                  color=CAM_COLORS[0], fontsize=11, fontweight="bold", fontfamily="monospace",
+    # Corner readout text objects showing latest value per camera
+    ra = ax1.text(0.98, 0.96, "A: OFFLINE", transform=ax1.transAxes, ha="right", va="top",
+                  color=CAM_COLORS[0], fontsize=10, fontweight="bold", fontfamily="monospace",
                   bbox=dict(facecolor="#07071a", edgecolor="none", alpha=0.85, pad=2))
-    rc = ax2.text(0.98, 0.88, "OFFLINE", transform=ax2.transAxes, ha="right", va="top",
-                  color=CAM_COLORS[2], fontsize=11, fontweight="bold", fontfamily="monospace",
+    rb = ax1.text(0.98, 0.80, "B: OFFLINE", transform=ax1.transAxes, ha="right", va="top",
+                  color=CAM_COLORS[1], fontsize=10, fontweight="bold", fontfamily="monospace",
+                  bbox=dict(facecolor="#07071a", edgecolor="none", alpha=0.85, pad=2))
+    rc = ax2.text(0.98, 0.96, "C: OFFLINE", transform=ax2.transAxes, ha="right", va="top",
+                  color=CAM_COLORS[2], fontsize=10, fontweight="bold", fontfamily="monospace",
+                  bbox=dict(facecolor="#07071a", edgecolor="none", alpha=0.85, pad=2))
+    rd = ax2.text(0.98, 0.80, "D: OFFLINE", transform=ax2.transAxes, ha="right", va="top",
+                  color=CAM_COLORS[3], fontsize=10, fontweight="bold", fontfamily="monospace",
                   bbox=dict(facecolor="#07071a", edgecolor="none", alpha=0.85, pad=2))
     fig.tight_layout(pad=1.2)
     cplot = FigureCanvasTkAgg(fig, master=gf)
@@ -379,16 +386,16 @@ def main():
             ax.set_xlim(max(0, t - WINDOW_SECS), max(WINDOW_SECS, t))
 
         # Update corner readout text with latest signal values
-        cur_a = cam_v[0][-1] if cam_v[0] else 0.0
-        cur_c = cam_v[2][-1] if cam_v[2] else 0.0
+        cur = [cam_v[i][-1] if cam_v[i] else 0.0 for i in range(4)]
         if cameras_active[0]:
-            ac = GREEN if cur_a > 70 else (AMBER if cur_a > 40 else DANGER)
-            cc = GREEN if cur_c > 70 else (AMBER if cur_c > 40 else DANGER)
-            ra.set_text(f"A:{cur_a:.0f}%"); ra.set_color(ac); la.set_color(ac)
-            rc.set_text(f"C:{cur_c:.0f}%"); rc.set_color(cc); lc.set_color(cc)
+            def sig_color(v): return GREEN if v > 70 else (AMBER if v > 40 else DANGER)
+            ra.set_text(f"A: {cur[0]:.0f}%"); ra.set_color(sig_color(cur[0]))
+            rb.set_text(f"B: {cur[1]:.0f}%"); rb.set_color(sig_color(cur[1]))
+            rc.set_text(f"C: {cur[2]:.0f}%"); rc.set_color(sig_color(cur[2]))
+            rd.set_text(f"D: {cur[3]:.0f}%"); rd.set_color(sig_color(cur[3]))
         else:
-            ra.set_text("OFFLINE"); ra.set_color(DANGER)
-            rc.set_text("OFFLINE"); rc.set_color(DANGER)
+            for r in [ra, rb, rc, rd]:
+                r.set_text("OFFLINE"); r.set_color(DANGER)
 
         cplot.draw_idle()
         update_pid()
