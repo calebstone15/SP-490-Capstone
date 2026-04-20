@@ -46,8 +46,8 @@ def create_pid_window(root, valve_states, valve_widgets_pid):
     """
     Draws the F1 Downstream P&ID matching the hand-drawn reference:
       - LOX Dewar (tall, far left) → horizontal main pipe
-      - RV4 (up) and B2 (down) at first junction
-      - B1: LOX Tank (up), PB10→C8 (down)
+      - RV4 (up) and O2 (down) at first junction
+      - O1: LOX Tank (up), PB10→C8 (down)
       - V1 on main pipe, PB9 drops below
       - Right junction: PB4 (up) → C3 Purge, C2 (down) → To Engine
     """
@@ -123,9 +123,9 @@ def create_pid_window(root, valve_states, valve_widgets_pid):
     #                   |                   |
     #   RV4             |                   |
     #    |              |                   |
-    # LOX Dewar──+──── B1 ──── V1 ───+─────+
+    # LOX Dewar──+──── O1 ──── V1 ───+─────+
     #            |      |            |     |
-    #           B2     PB10        PB9    C2
+    #           O2     PB10        PB9    C2
     #                   |                  |
     #                  C8                  ↓
     #                                 To Engine
@@ -134,8 +134,8 @@ def create_pid_window(root, valve_states, valve_widgets_pid):
 
     # X positions along main pipe (left to right)
     X_DEWAR = 80
-    X_JUNC1 = 210   # RV4 / B2 junction
-    X_B1 = 340
+    X_JUNC1 = 210   # RV4 / O2 junction
+    X_O1 = 340
     X_V1 = 480
     X_PB9 = 575      # PB9 drops here
     X_JUNC2 = 700    # PB4 / C2 junction
@@ -145,7 +145,7 @@ def create_pid_window(root, valve_states, valve_widgets_pid):
     Y_RV4 = 210
     Y_LOX_TANK_CTR = 120
     Y_PB4 = 185
-    Y_B2 = 410
+    Y_O2 = 410
     Y_PB10 = 430
     Y_C8 = 530
     Y_PB9 = 430
@@ -156,32 +156,32 @@ def create_pid_window(root, valve_states, valve_widgets_pid):
 
     # ═══ MAIN HORIZONTAL PIPE SEGMENTS (no crossings) ═════
     pipe(X_DEWAR + 33, MY, X_JUNC1, MY)       # Dewar → junc1
-    pipe(X_JUNC1, MY, X_B1 - 34, MY)          # junc1 → B1
-    pipe(X_B1 + 34, MY, X_V1 - 30, MY)        # B1 → V1
+    pipe(X_JUNC1, MY, X_O1 - 34, MY)          # junc1 → O1
+    pipe(X_O1 + 34, MY, X_V1 - 30, MY)        # O1 → V1
     pipe(X_V1 + 30, MY, X_PB9, MY)            # V1 → PB9 junc
     pipe(X_PB9, MY, X_JUNC2, MY)              # PB9 junc → junc2
 
-    # ── Junction 1: RV4 (up) and B2 (down) ────────────────
+    # ── Junction 1: RV4 (up) and O2 (down) ────────────────
     pipe(X_JUNC1, MY, X_JUNC1, Y_RV4 + 19)    # up to RV4
     valve_box(X_JUNC1, Y_RV4, "RV4")
 
-    pipe(X_JUNC1, MY, X_JUNC1, Y_B2 - 19)     # down to B2
-    valve_box(X_JUNC1, Y_B2, "B2")
+    pipe(X_JUNC1, MY, X_JUNC1, Y_O2 - 19)     # down to O2
+    valve_box(X_JUNC1, Y_O2, "O2")
 
-    # ── B1 on main pipe ───────────────────────────────────
-    valve_box(X_B1, MY, "B1")
+    # ── O1 on main pipe ───────────────────────────────────
+    valve_box(X_O1, MY, "O1")
 
-    # LOX Tank above B1
-    pipe(X_B1, MY - 19, X_B1, Y_LOX_TANK_CTR + 70)  # up to tank
-    tank_shape(X_B1, Y_LOX_TANK_CTR, "LOX\nTank", w=80, h=140, fc="#0f3460")
+    # LOX Tank above O1
+    pipe(X_O1, MY - 19, X_O1, Y_LOX_TANK_CTR + 70)  # up to tank
+    tank_shape(X_O1, Y_LOX_TANK_CTR, "LOX\nTank", w=80, h=140, fc="#0f3460")
 
-    # PB10 below B1
-    pipe(X_B1, MY + 19, X_B1, Y_PB10 - 19)
-    valve_box(X_B1, Y_PB10, "PB10")
+    # PB10 below O1
+    pipe(X_O1, MY + 19, X_O1, Y_PB10 - 19)
+    valve_box(X_O1, Y_PB10, "PB10")
 
     # C8 below PB10
-    pipe(X_B1, Y_PB10 + 19, X_B1, Y_C8 - 19)
-    valve_box(X_B1, Y_C8, "C8")
+    pipe(X_O1, Y_PB10 + 19, X_O1, Y_C8 - 19)
+    valve_box(X_O1, Y_C8, "C8")
 
     # ── V1 (Venturi) on main pipe ─────────────────────────
     component(X_V1, MY, "V1", w=60, h=30, fc="#2a2a5a")
@@ -202,34 +202,12 @@ def create_pid_window(root, valve_states, valve_widgets_pid):
     label(X_JUNC2 + 5, Y_C2 + 95, "To Engine", size=10, color="#ff8888", anchor="w")
 
     # ── C3 / Purge (right of PB4, arrow pointing left) ────
-    # Single flow arrow from C3 pointing LEFT into the system (PB4)
-    arrow(X_C3 - 34, Y_PB4, X_JUNC2 + 34, Y_PB4, "#66ccff")
+    # Horizontal line from PB4 right to C3
+    pipe(X_JUNC2 + 34, Y_PB4, X_C3 - 34, Y_PB4)
     valve_box(X_C3, Y_PB4, "C3")
+    # Arrow from C3 pointing LEFT into the system
+    arrow(X_C3 - 34, Y_PB4 - 12, X_JUNC2 + 45, Y_PB4 - 12, "#66ccff")
     label(X_C3 + 42, Y_PB4, "Purge", size=10, color="#88ccff", anchor="w")
-
-    # ── Center the P&ID content in the canvas on resize ────
-    def center_pid(event=None):
-        bbox = c.bbox("all")
-        if bbox is None:
-            return
-        # Content bounds
-        cx1, cy1, cx2, cy2 = bbox
-        content_w = cx2 - cx1
-        content_h = cy2 - cy1
-        canvas_w = c.winfo_width()
-        canvas_h = c.winfo_height()
-        # Pad around the content so scroll region is large enough to center
-        pad_x = max(0, (canvas_w - content_w) // 2)
-        pad_y = max(0, (canvas_h - content_h) // 2)
-        sr = (cx1 - pad_x, cy1 - pad_y, cx2 + pad_x, cy2 + pad_y)
-        c.configure(scrollregion=sr)
-        # Scroll to center
-        c.xview_moveto(0)
-        c.yview_moveto(0)
-
-    c.bind("<Configure>", center_pid)
-    # Initial centering after the window draws
-    pid_win.after(100, center_pid)
 
     return pid_win, c
 
@@ -282,7 +260,7 @@ def create_temp_window(root):
 def main():
     root = tk.Tk()
     root.title("F1 Downstream – Operator Simulation")
-    root.geometry("750x900")
+    root.geometry("750x700")
     root.configure(bg=BG_DARK)
     root.resizable(True, True)
     root.minsize(650, 550)
@@ -290,8 +268,8 @@ def main():
     # ── Shared state ────────────────────────────────────────────
     valve_states = {
         "RV4":  True,
-        "B2":   None,
-        "B1":   None,
+        "O2":   None,
+        "O1":   None,
         "PB10": False,
         "C8":   None,
         "PB9":  False,
@@ -420,158 +398,135 @@ def main():
 
     # ── Step definitions ────────────────────────────────────────
     step_defs = [
-        ("Step 1: Open PB10\n(LOX Valve)", "open_pb10"),
-        ("Step 2: Open B1\n(Fill Valve)", "open_b1"),
-        ("Step 3: Activate LOX Chill\n(Chill Sequence)", "lox_chill_1"),
-        ("Step 4: Verify LOX Temp\n(< -250°F)", "verify_1"),
-        ("Step 5: Re-run LOX Chill\n(Chill Sequence)", "lox_chill_2"),
-        ("Step 6: Verify LOX Temp\n(< -250°F)", "verify_2"),
+        ("Step 1: Open O1\n(LOX Flow Valve)", "open_o1"),
+        ("Step 2: Close O1\n(Isolate Dewar)", "close_o1"),
+        ("Step 3: Activate LOX Chill\n(Chill Sequence)", "lox_chill"),
+        ("Step 4: Open C3 for 5s\n(Purge)", "open_c3"),
     ]
 
-    def do_step(key):
-        if key == "open_pb10":
-            set_valve("PB10", True)
-            status_var.set("PB10 opened – LOX valve open.")
-            anomaly_var.set("")
-            advance_step()
+    def check_chill_anomaly():
+        if temp_state["chill_presses"] == 1 and not temp_state["complete"]:
+            temp_state["anomaly"] = True
+            temp_state["chilling"] = False
+            anomaly_var.set(
+                "⚠ ANOMALY: LOX chill not cold enough!\n"
+                "Temp did not reach < -250°F.\n"
+                "Press Step 3 AGAIN to re-chill."
+            )
+            anomaly_label.config(fg="#ff4444")
+            status_var.set("Anomaly – LOX chill insufficient. Press Step 3 again.")
+            step_buttons[2].config(state="normal", bg=BG_CARD, fg=FG_TEXT)
 
-            cmd_log("STEP 1 EXECUTED: Open PB10", "header")
-            cmd_log("Valve PB10 → OPEN", "success")
-            cmd_log("PB10 actuated open. LOX flow path enabled.", "info")
+            cmd_log("", "info")
+            cmd_log("!!! ANOMALY DETECTED !!!", "error")
+            cmd_log(f"LOX Dragon Temp: {temp_state['current']:.1f}°F", "error")
+            cmd_log("Temperature did NOT reach threshold < -250°F", "error")
+            cmd_log("ACTION REQUIRED: Re-run chill sequence (press Step 3 again)", "warning")
 
-        elif key == "open_b1":
-            set_valve("B1", True)
-            status_var.set("B1 opened – fill valve open.")
-            anomaly_var.set("")
-            advance_step()
-
-            cmd_log("STEP 2 EXECUTED: Open B1", "header")
-            cmd_log("Valve B1 → OPEN", "success")
-            cmd_log("B1 actuated open. LOX fill enabled.", "info")
-
-        elif key == "lox_chill_1":
-            # First chill – intentionally targets only -150°F (won't pass verification)
-            temp_state["chill_presses"] = 1
-            temp_state["chilling"] = True
-            temp_state["target"] = -150.0
-            temp_state["anomaly"] = False
-            temp_state["complete"] = False
-            temp_state["chill_start_time"] = time.time()
-            status_var.set("LOX chill sequence activated... cooling downstream lines.")
-            anomaly_var.set("")
-            # Disable this button while chilling; auto-advance after 4s
-            step_buttons[2].config(state="disabled", bg="#333355", fg="#666688")
-            root.after(4000, finish_chill_1)
-
-            cmd_log("STEP 3 EXECUTED: Activate LOX Chill", "header")
-            cmd_log("LOX chill sequence initiated...", "info")
-            cmd_log("Target: cool downstream lines below -250°F", "info")
-            cmd_log("Monitoring LOX Dragon Temp sensor...", "info")
-
-        elif key == "verify_1":
-            # Check temp – it WON'T be below -250°F after first chill
-            cur_temp = temp_state["current"]
-            if cur_temp <= -250.0:
-                # Shouldn't happen on first attempt, but handle gracefully
-                anomaly_var.set("✓ LOX Dragon Temp verified < -250°F")
-                anomaly_label.config(fg="#22cc44")
-                status_var.set("LOX chill verified. Unexpected early success.")
-                advance_step()
-                cmd_log("STEP 4: Temp verification PASSED (unexpected)", "success")
-            else:
-                # Expected failure – temp not cold enough
-                temp_state["anomaly"] = True
-                temp_state["chilling"] = False
-                anomaly_var.set(
-                    f"⚠ ANOMALY: LOX Dragon Temp = {cur_temp:.1f}°F\n"
-                    "Temp did NOT reach < -250°F threshold.\n"
-                    "Must re-run chill sequence (Step 5)."
-                )
-                anomaly_label.config(fg="#ff4444")
-                status_var.set("Anomaly – LOX chill insufficient. Proceed to Step 5 to re-chill.")
-                advance_step()
-
-                cmd_log("", "info")
-                cmd_log("STEP 4 EXECUTED: Verify LOX Temp", "header")
-                cmd_log(f"LOX Dragon Temp: {cur_temp:.1f}°F", "error")
-                cmd_log("!!! VERIFICATION FAILED !!!", "error")
-                cmd_log("Temperature did NOT reach threshold < -250°F", "error")
-                cmd_log("ACTION REQUIRED: Re-run chill sequence (Step 5)", "warning")
-
-        elif key == "lox_chill_2":
-            # Second chill – targets -275°F (will pass verification)
-            temp_state["chill_presses"] = 2
-            temp_state["pre_chill2_temp"] = temp_state["current"]
-            temp_state["chilling"] = True
-            temp_state["target"] = -275.0
-            temp_state["anomaly"] = False
-            temp_state["chill_start_time"] = time.time()
-            status_var.set("Re-running LOX chill sequence... extended cooling.")
-            anomaly_var.set("")
-            step_buttons[4].config(state="disabled", bg="#333355", fg="#666688")
-            root.after(4000, finish_chill_2)
-
-            cmd_log("STEP 5 EXECUTED: Re-run LOX Chill", "header")
-            cmd_log(f"Starting temp: {temp_state['pre_chill2_temp']:.1f}°F", "info")
-            cmd_log("Extended chill sequence running...", "info")
-            cmd_log("Target: reach < -250°F threshold", "info")
-
-        elif key == "verify_2":
-            # Check temp – should now be below -250°F
-            cur_temp = temp_state["current"]
-            if cur_temp <= -250.0:
-                temp_state["complete"] = True
-                temp_state["anomaly"] = False
-                temp_state["chilling"] = False
-                anomaly_var.set("✓ LOX Dragon Temp verified < -250°F\nChill sequence COMPLETE.")
-                anomaly_label.config(fg="#22cc44")
-                status_var.set("LOX chill verified. All steps complete.")
-                advance_step()
-
-                cmd_log("", "info")
-                cmd_log("STEP 6 EXECUTED: Verify LOX Temp", "header")
-                cmd_log(f"LOX Dragon Temp: {cur_temp:.1f}°F", "success")
-                cmd_log("✓ VERIFICATION PASSED", "success")
-                cmd_log("Temperature verified below -250°F threshold", "success")
-                cmd_log("", "info")
-                cmd_log("═" * 40, "header")
-                cmd_log("ALL PROCEDURE STEPS COMPLETE", "success")
-                cmd_log("F1 Downstream sequence finished.", "success")
-                cmd_log("═" * 40, "header")
-            else:
-                anomaly_var.set(
-                    f"⚠ LOX Dragon Temp = {cur_temp:.1f}°F\n"
-                    "Still not below -250°F. Check system."
-                )
-                anomaly_label.config(fg="#ff4444")
-                status_var.set("Verification failed again. Check chill system.")
-
-                cmd_log("STEP 6 EXECUTED: Verify LOX Temp", "header")
-                cmd_log(f"LOX Dragon Temp: {cur_temp:.1f}°F", "error")
-                cmd_log("VERIFICATION FAILED AGAIN", "error")
-
-    def finish_chill_1():
-        """Called after first chill completes – stop chilling, advance to verify."""
+    def check_chill_complete():
+        temp_state["complete"] = True
+        temp_state["anomaly"] = False
         temp_state["chilling"] = False
-        status_var.set("First chill complete. Verify LOX Dragon Temp (Step 4).")
+        anomaly_var.set("✓ LOX Dragon Temp verified < -250°F\nChill sequence COMPLETE.")
+        anomaly_label.config(fg="#22cc44")
+        status_var.set("LOX chill verified. Proceed to purge.")
         advance_step()
 
         cmd_log("", "info")
-        cmd_log("LOX chill sequence #1 complete.", "info")
-        cmd_log(f"LOX Dragon Temp: {temp_state['current']:.1f}°F", "info")
-        cmd_log("Proceed to Step 4: Verify LOX temp < -250°F", "info")
-
-    def finish_chill_2():
-        """Called after second chill completes – stop chilling, advance to verify."""
-        temp_state["chilling"] = False
-        status_var.set("Second chill complete. Verify LOX Dragon Temp (Step 6).")
-        advance_step()
-
-        cmd_log("", "info")
-        cmd_log("LOX chill sequence #2 complete.", "success")
+        cmd_log("LOX chill sequence COMPLETE", "success")
         cmd_log(f"LOX Dragon Temp: {temp_state['current']:.1f}°F", "success")
-        cmd_log("Proceed to Step 6: Verify LOX temp < -250°F", "info")
+        cmd_log("Temperature verified below -250°F threshold", "success")
+        cmd_log("Proceed to Step 4: Purge (C3)", "info")
 
+    def do_step(key):
+        if key == "open_o1":
+            set_valve("O1", True)
+            status_var.set("O1 opened – LOX flow valve open for tank fill.")
+            anomaly_var.set("")
+            advance_step()
+
+            cmd_log("STEP 1 EXECUTED: Open O1", "header")
+            cmd_log("Valve O1 → OPEN", "success")
+            cmd_log("LOX flow path enabled.", "info")
+            cmd_log("LOX Dewar → O1 → LOX Tank flow path enabled.", "info")
+
+        elif key == "close_o1":
+            set_valve("O1", False)
+            status_var.set("O1 closed – dewar isolated from LOX tank.")
+            anomaly_var.set("")
+            advance_step()
+
+            cmd_log("STEP 2 EXECUTED: Close O1", "header")
+            cmd_log("Valve O1 → CLOSED", "warning")
+            cmd_log("LOX Dewar isolated from tank.", "info")
+            cmd_log("Tank fill complete. Dewar path sealed.", "info")
+
+        elif key == "lox_chill":
+            if temp_state["chill_presses"] == 0:
+                temp_state["chill_presses"] = 1
+                temp_state["chilling"] = True
+                temp_state["target"] = -150.0
+                temp_state["anomaly"] = False
+                temp_state["complete"] = False
+                temp_state["chill_start_time"] = time.time()
+                status_var.set("LOX chill sequence activated...")
+                anomaly_var.set("")
+                step_buttons[2].config(state="disabled", bg="#333355", fg="#666688")
+                root.after(4000, check_chill_anomaly)
+
+                cmd_log("STEP 3 EXECUTED: Activate LOX Chill", "header")
+                cmd_log("LOX chill sequence initiated...", "info")
+                cmd_log("Target: cool downstream lines below -250°F", "info")
+                cmd_log("Monitoring LOX Dragon Temp sensor...", "info")
+
+            else:
+                temp_state["chill_presses"] = 2
+                temp_state["pre_chill2_temp"] = temp_state["current"]
+                temp_state["chilling"] = True
+                temp_state["target"] = -275.0
+                temp_state["anomaly"] = False
+                temp_state["chill_start_time"] = time.time()
+                status_var.set("Re-running LOX chill sequence...")
+                anomaly_var.set("")
+                step_buttons[2].config(state="disabled", bg="#333355", fg="#666688")
+                root.after(4000, check_chill_complete)
+
+                cmd_log("STEP 3 RE-EXECUTED: LOX Chill (attempt 2)", "header")
+                cmd_log(f"Starting temp: {temp_state['pre_chill2_temp']:.1f}°F", "info")
+                cmd_log("Extended chill sequence running...", "info")
+                cmd_log("Target: reach < -250°F threshold", "info")
+
+        elif key == "open_c3":
+            set_valve("C3", True)
+            status_var.set("C3 opened – Purge active (5 seconds)...")
+            anomaly_var.set("")
+            advance_step()
+            root.after(5000, close_c3)
+
+            cmd_log("STEP 4 EXECUTED: Open C3 (Purge)", "header")
+            cmd_log("Valve C3 → OPEN", "success")
+            cmd_log("Purge gas flowing through lines...", "info")
+            cmd_log("Auto-close in 5 seconds.", "info")
+
+    def close_c3():
+        set_valve("C3", False)
+        status_var.set("C3 closed – Purge complete. All steps done. LOX temp trending to ambient.")
+
+        # Stop any active chill and begin warming trend back to ambient
+        temp_state["chilling"] = False
+        temp_state["warming"] = True
+        temp_state["warming_start_time"] = time.time()
+        temp_state["warming_start_temp"] = temp_state["current"]
+
+        cmd_log("", "info")
+        cmd_log("C3 AUTO-CLOSED after 5s", "warning")
+        cmd_log("Purge complete.", "success")
+        cmd_log("", "info")
+        cmd_log("═" * 40, "header")
+        cmd_log("ALL PROCEDURE STEPS COMPLETE", "success")
+        cmd_log("F1 Downstream sequence finished.", "success")
+        cmd_log("LOX Dragon Temp trending back to ambient (70°F)...", "info")
+        cmd_log("═" * 40, "header")
 
     # ── Create step buttons ─────────────────────────────────────
     btn_frame = tk.Frame(left, bg=BG_DARK)

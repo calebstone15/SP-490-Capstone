@@ -451,118 +451,66 @@ def main():
     )
     s6_btn.pack(fill="x")
 
+    # ── CLOSE PB5 VALVE CONTROL ─────────────────────────────────
+    pb5_frame = tk.Frame(root, bg=BG_PANEL, bd=0, highlightthickness=2,
+                         highlightbackground="#333366")
+    pb5_frame.pack(padx=30, pady=(0, 10), fill="x")
 
-
-    # ── CLOSE PB1 AND S5 VALVE CONTROL ────────────────────────────
-    cpb1s4_frame = tk.Frame(root, bg=BG_PANEL, bd=0, highlightthickness=2,
-                            highlightbackground="#333366")
-    cpb1s4_frame.pack(padx=30, pady=(0, 10), fill="x")
-
-    # Title row
-    cpb1s4_title_row = tk.Frame(cpb1s4_frame, bg=BG_PANEL)
-    cpb1s4_title_row.pack(fill="x", padx=16, pady=(14, 4))
+    # PB5 Title row
+    pb5_title_row = tk.Frame(pb5_frame, bg=BG_PANEL)
+    pb5_title_row.pack(fill="x", padx=16, pady=(14, 4))
 
     tk.Label(
-        cpb1s4_title_row,
-        text="Close PB1 and S5",
+        pb5_title_row,
+        text="Close PB5",
         font=("Helvetica", 22, "bold"),
         fg=FG_TEXT,
         bg=BG_PANEL,
     ).pack(side="left")
 
-    # Both valves start OPEN – operator needs to close them
-    cpb1s4_state = {"open": True}
+    # PB5 valve state (starts OPEN – operator needs to close it)
+    pb5_state = {"open": True}
 
-    # PB1 status
-    pb1_status_var = tk.StringVar(value="OPEN")
-    pb1_status_lbl = tk.Label(
-        cpb1s4_title_row,
-        textvariable=pb1_status_var,
-        font=("Helvetica", 12, "bold"),
+    pb5_status_var = tk.StringVar(value="OPEN")
+    pb5_status_lbl = tk.Label(
+        pb5_title_row,
+        textvariable=pb5_status_var,
+        font=("Helvetica", 14, "bold"),
         fg=COLOR_ON,
         bg=BG_PANEL,
     )
-    pb1_status_lbl.pack(side="right", padx=(10, 0))
+    pb5_status_lbl.pack(side="right", padx=(10, 0))
 
-    tk.Label(
-        cpb1s4_title_row,
-        text="PB1:",
-        font=("Helvetica", 12),
-        fg=FG_DIM,
-        bg=BG_PANEL,
-    ).pack(side="right", padx=(10, 2))
-
-    # S5 status
-    s5_status_var = tk.StringVar(value="OPEN")
-    s5_status_lbl = tk.Label(
-        cpb1s4_title_row,
-        textvariable=s5_status_var,
-        font=("Helvetica", 12, "bold"),
-        fg=COLOR_ON,
-        bg=BG_PANEL,
-    )
-    s5_status_lbl.pack(side="right", padx=(10, 0))
-
-    tk.Label(
-        cpb1s4_title_row,
-        text="S5:",
-        font=("Helvetica", 12),
-        fg=FG_DIM,
-        bg=BG_PANEL,
-    ).pack(side="right", padx=(10, 2))
-
-    # Indicator row
-    cpb1s4_ind_row = tk.Frame(cpb1s4_frame, bg=BG_PANEL)
-    cpb1s4_ind_row.pack(fill="x", padx=16, pady=(2, 4))
-
-    tk.Label(cpb1s4_ind_row, text="PB1", font=("Helvetica", 11),
-             fg=FG_DIM, bg=BG_PANEL).pack(side="left", padx=(0, 4))
-    pb1_indicator = tk.Canvas(cpb1s4_ind_row, width=18, height=18,
+    pb5_indicator = tk.Canvas(pb5_title_row, width=18, height=18,
                               bg=BG_PANEL, highlightthickness=0)
-    pb1_indicator.pack(side="left")
-    pb1_dot = pb1_indicator.create_oval(2, 2, 16, 16, fill=COLOR_ON,
+    pb5_indicator.pack(side="right")
+    pb5_dot = pb5_indicator.create_oval(2, 2, 16, 16, fill=COLOR_ON,
                                          outline="#ffffff", width=1)
 
-    tk.Label(cpb1s4_ind_row, text="   S5", font=("Helvetica", 11),
-             fg=FG_DIM, bg=BG_PANEL).pack(side="left", padx=(10, 4))
-    s5_indicator = tk.Canvas(cpb1s4_ind_row, width=18, height=18,
-                             bg=BG_PANEL, highlightthickness=0)
-    s5_indicator.pack(side="left")
-    s5_dot = s5_indicator.create_oval(2, 2, 16, 16, fill=COLOR_ON,
-                                       outline="#ffffff", width=1)
+    # PB5 Toggle button
+    pb5_toggle_frame = tk.Frame(pb5_frame, bg=BG_PANEL)
+    pb5_toggle_frame.pack(fill="x", padx=16, pady=(8, 14))
 
-    # Toggle button
-    cpb1s4_toggle_frame = tk.Frame(cpb1s4_frame, bg=BG_PANEL)
-    cpb1s4_toggle_frame.pack(fill="x", padx=16, pady=(8, 14))
-
-    def toggle_cpb1s4():
-        cpb1s4_state["open"] = not cpb1s4_state["open"]
-        if cpb1s4_state["open"]:
-            cpb1s4_btn.config(text="■  Close PB1 and S5", bg=BG_CARD, fg=FG_TEXT)
-            pb1_status_var.set("OPEN")
-            s5_status_var.set("OPEN")
-            pb1_status_lbl.config(fg=COLOR_ON)
-            s5_status_lbl.config(fg=COLOR_ON)
-            pb1_indicator.itemconfig(pb1_dot, fill=COLOR_ON)
-            s5_indicator.itemconfig(s5_dot, fill=COLOR_ON)
-            cmd_log("VALVE PB1 → OPEN", "success")
-            cmd_log("VALVE S5 → OPEN", "success")
-            cmd_log("PB1 and S5 actuated open. Flow paths enabled.", "info")
+    def toggle_pb5():
+        pb5_state["open"] = not pb5_state["open"]
+        if pb5_state["open"]:
+            pb5_btn.config(text="■  Close PB5", bg=BG_CARD, fg=FG_TEXT)
+            pb5_status_var.set("OPEN")
+            pb5_status_lbl.config(fg=COLOR_ON)
+            pb5_indicator.itemconfig(pb5_dot, fill=COLOR_ON)
+            cmd_log("VALVE PB5 → OPEN", "success")
+            cmd_log("PB5 actuated open. Flow path enabled.", "info")
         else:
-            cpb1s4_btn.config(text="▶  Open PB1 and S5", bg="#4a1a1a", fg=COLOR_OFF)
-            pb1_status_var.set("CLOSED")
-            s5_status_var.set("CLOSED")
-            pb1_status_lbl.config(fg=COLOR_OFF)
-            s5_status_lbl.config(fg=COLOR_OFF)
-            pb1_indicator.itemconfig(pb1_dot, fill=COLOR_OFF)
-            s5_indicator.itemconfig(s5_dot, fill=COLOR_OFF)
-            cmd_log("VALVE PB1 → CLOSED", "warning")
-            cmd_log("VALVE S5 → CLOSED", "warning")
-            cmd_log("PB1 and S5 de-energized. Flow paths sealed.", "info")
+            pb5_btn.config(text="▶  Open PB5", bg="#4a1a1a", fg=COLOR_OFF)
+            pb5_status_var.set("CLOSED")
+            pb5_status_lbl.config(fg=COLOR_OFF)
+            pb5_indicator.itemconfig(pb5_dot, fill=COLOR_OFF)
+            cmd_log("VALVE PB5 → CLOSED", "warning")
+            cmd_log("PB5 de-energized. Flow path sealed.", "info")
 
-    cpb1s4_btn = tk.Button(
-        cpb1s4_toggle_frame,
-        text="■  Close PB1 and S5",
+    pb5_btn = tk.Button(
+        pb5_toggle_frame,
+        text="■  Close PB5",
         font=("Helvetica", 15, "bold"),
         bg=BG_CARD,
         fg=FG_TEXT,
@@ -572,10 +520,82 @@ def main():
         cursor="hand2",
         padx=20,
         pady=10,
-        command=toggle_cpb1s4,
+        command=toggle_pb5,
     )
-    cpb1s4_btn.pack(fill="x")
+    pb5_btn.pack(fill="x")
 
+    # ── CLOSE S6 VALVE CONTROL ──────────────────────────────────
+    cs6_frame = tk.Frame(root, bg=BG_PANEL, bd=0, highlightthickness=2,
+                         highlightbackground="#333366")
+    cs6_frame.pack(padx=30, pady=(0, 10), fill="x")
+
+    # Close-S6 Title row
+    cs6_title_row = tk.Frame(cs6_frame, bg=BG_PANEL)
+    cs6_title_row.pack(fill="x", padx=16, pady=(14, 4))
+
+    tk.Label(
+        cs6_title_row,
+        text="Close S6",
+        font=("Helvetica", 22, "bold"),
+        fg=FG_TEXT,
+        bg=BG_PANEL,
+    ).pack(side="left")
+
+    # Close-S6 state (starts OPEN – operator needs to close it)
+    cs6_state = {"open": True}
+
+    cs6_status_var = tk.StringVar(value="OPEN")
+    cs6_status_lbl = tk.Label(
+        cs6_title_row,
+        textvariable=cs6_status_var,
+        font=("Helvetica", 14, "bold"),
+        fg=COLOR_ON,
+        bg=BG_PANEL,
+    )
+    cs6_status_lbl.pack(side="right", padx=(10, 0))
+
+    cs6_indicator = tk.Canvas(cs6_title_row, width=18, height=18,
+                              bg=BG_PANEL, highlightthickness=0)
+    cs6_indicator.pack(side="right")
+    cs6_dot = cs6_indicator.create_oval(2, 2, 16, 16, fill=COLOR_ON,
+                                         outline="#ffffff", width=1)
+
+    # Close-S6 Toggle button
+    cs6_toggle_frame = tk.Frame(cs6_frame, bg=BG_PANEL)
+    cs6_toggle_frame.pack(fill="x", padx=16, pady=(8, 14))
+
+    def toggle_cs6():
+        cs6_state["open"] = not cs6_state["open"]
+        if cs6_state["open"]:
+            cs6_btn.config(text="■  Close S6", bg=BG_CARD, fg=FG_TEXT)
+            cs6_status_var.set("OPEN")
+            cs6_status_lbl.config(fg=COLOR_ON)
+            cs6_indicator.itemconfig(cs6_dot, fill=COLOR_ON)
+            cmd_log("VALVE S6 → OPEN (Close-S6 panel)", "success")
+            cmd_log("S6 actuated open.", "info")
+        else:
+            cs6_btn.config(text="▶  Open S6", bg="#4a1a1a", fg=COLOR_OFF)
+            cs6_status_var.set("CLOSED")
+            cs6_status_lbl.config(fg=COLOR_OFF)
+            cs6_indicator.itemconfig(cs6_dot, fill=COLOR_OFF)
+            cmd_log("VALVE S6 → CLOSED (Close-S6 panel)", "warning")
+            cmd_log("S6 de-energized. Flow path sealed.", "info")
+
+    cs6_btn = tk.Button(
+        cs6_toggle_frame,
+        text="■  Close S6",
+        font=("Helvetica", 15, "bold"),
+        bg=BG_CARD,
+        fg=FG_TEXT,
+        activebackground="#0f3460",
+        activeforeground=FG_TEXT,
+        relief="flat",
+        cursor="hand2",
+        padx=20,
+        pady=10,
+        command=toggle_cs6,
+    )
+    cs6_btn.pack(fill="x")
 
     # ── OPEN PB3 VALVE CONTROL ──────────────────────────────────
     pb3_frame = tk.Frame(root, bg=BG_PANEL, bd=0, highlightthickness=2,
@@ -655,7 +675,7 @@ def main():
     cmd_log("=" * 40, "header")
     cmd_log("System initialized. R1 regulator ready.", "info")
     cmd_log("Setpoint: 1000 psi | Regulation: OFF", "info")
-    cmd_log("Valve S6: CLOSED | PB1: OPEN | S5: OPEN", "info")
+    cmd_log("Valve S6: CLOSED | Valve PB5: OPEN | Close-S6: OPEN", "info")
     cmd_log("", "info")
 
     # Track previous toggle state for logging

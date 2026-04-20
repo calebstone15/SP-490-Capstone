@@ -35,11 +35,7 @@ def main():
     # ── Window setup ──────────────────────────────────────────────────
     root = tk.Tk()
     root.title("Visual Control — Camera & System Oversight")
-    w, h = 1440, 960
-    root.update_idletasks()
-    sx = (root.winfo_screenwidth() - w) // 2
-    sy = (root.winfo_screenheight() - h) // 2
-    root.geometry(f"{w}x{h}+{sx}+{sy}")
+    root.geometry("1440x960")
     root.configure(bg=BG)
     root.resizable(True, True)
     root.minsize(1050, 780)
@@ -307,16 +303,14 @@ def main():
         step_labels.append(sl)
         btn.config(command=make_toggle(i))
 
-    # ── Dual graph in separate window ──────────────────────────────────
-    # Two side-by-side matplotlib plots in their own Toplevel window:
+    # ── Dual graph ────────────────────────────────────────────────────
+    # Two side-by-side matplotlib plots embedded in the Tk window:
     #   ax1 – CAM-A and CAM-B signal quality (0–100%)
     #   ax2 – CAM-C and CAM-D signal quality (0–100%)
     # A dashed 70% reference line indicates minimum acceptable signal quality.
-    graph_win = tk.Toplevel(root)
-    graph_win.title("Visual Control — Camera Signal Quality")
-    graph_win.geometry("1100x420")
-    graph_win.configure(bg=PANEL)
-    graph_win.resizable(True, True)
+    tk.Frame(root, bg=BORDER, height=1).pack(fill="x", padx=50, pady=(8, 0))
+    gf = tk.Frame(root, bg=BG)
+    gf.pack(fill="x", padx=50, pady=(4, 0))
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10.8, 3.5))
     fig.patch.set_facecolor(PANEL)
@@ -361,8 +355,8 @@ def main():
                   color=CAM_COLORS[3], fontsize=10, fontweight="bold", fontfamily="monospace",
                   bbox=dict(facecolor="#07071a", edgecolor="none", alpha=0.85, pad=2))
     fig.tight_layout(pad=1.2)
-    cplot = FigureCanvasTkAgg(fig, master=graph_win)
-    cplot.get_tk_widget().pack(fill="both", expand=True, padx=10, pady=10)
+    cplot = FigureCanvasTkAgg(fig, master=gf)
+    cplot.get_tk_widget().pack(fill="both", expand=True)
 
     def update_graph():
         """Advance the simulation by one tick and refresh the live plots and P&ID.
